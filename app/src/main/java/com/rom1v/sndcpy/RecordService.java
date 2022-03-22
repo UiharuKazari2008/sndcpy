@@ -40,8 +40,12 @@ public class RecordService extends Service {
     private static final String SOCKET_NAME = "sndcpy";
 
 
-    private static final int SAMPLE_RATE = 48000;
+    // private static final int SAMPLE_RATE = 48000;
+    private static int SAMPLE_RATE = 48000;
+    private static int SAMPLE_RATE_REAL = 0;
     private static final int CHANNELS = 2;
+
+    private static int BUFFER_SIZE = 1024 * 1024;
 
     private final Handler handler = new ConnectionHandler(this);
     private MediaProjectionManager mediaProjectionManager;
@@ -49,6 +53,29 @@ public class RecordService extends Service {
     private Thread recorderThread;
 
     public static void start(Context context, Intent data) {
+        SAMPLE_RATE_REAL = data.getIntExtra("SAMPLE_RATE", 48000);
+        SAMPLE_RATE = SAMPLE_RATE_REAL;
+
+        int mBufferSizeType = data.getIntExtra("BUFFER_SIZE_TYPE", 0);
+        switch (mBufferSizeType) {
+            case 0:
+                BUFFER_SIZE = 1024 * 1024;
+                break;
+            case 1:
+                BUFFER_SIZE = 1024 * 512;
+                break;
+            case 2:
+                BUFFER_SIZE = 1024 * 256;
+                break;
+            case 3:
+                BUFFER_SIZE = 1024 * 128;
+                break;
+            case 4:
+                BUFFER_SIZE = 1024 * 64;
+                break;
+        }
+        Log.d(TAG, "Current SAMPLE_RATE is " + SAMPLE_RATE + " Hz");
+        Log.d(TAG, "Current BUFFER_SIZE is " + BUFFER_SIZE + " bytes");
         Intent intent = new Intent(context, RecordService.class);
         intent.setAction(ACTION_RECORD);
         intent.putExtra(EXTRA_MEDIA_PROJECTION_DATA, data);
@@ -58,7 +85,6 @@ public class RecordService extends Service {
     @Override
     public void onCreate() {
         super.onCreate();
-
         Notification notification = createNotification(false);
 
         NotificationChannel channel = new NotificationChannel(CHANNEL_ID, getString(R.string.app_name), NotificationManager.IMPORTANCE_NONE);
@@ -103,6 +129,9 @@ public class RecordService extends Service {
         notificationBuilder.setContentText(getText(textRes));
         notificationBuilder.setSmallIcon(R.drawable.ic_album_black_24dp);
         notificationBuilder.addAction(createStopAction());
+        notificationBuilder.setStyle(new Notification.InboxStyle()
+                .addLine(getText(textRes))
+                .addLine(SAMPLE_RATE + "Hz 16bit PCM"));
         return notificationBuilder.build();
     }
 
@@ -150,7 +179,7 @@ public class RecordService extends Service {
     private static AudioRecord createAudioRecord(MediaProjection mediaProjection) {
         AudioRecord.Builder builder = new AudioRecord.Builder();
         builder.setAudioFormat(createAudioFormat());
-        builder.setBufferSizeInBytes(1024 * 1024);
+        builder.setBufferSizeInBytes(BUFFER_SIZE);
         builder.setAudioPlaybackCaptureConfig(createAudioPlaybackCaptureConfig(mediaProjection));
         return builder.build();
     }
@@ -165,7 +194,7 @@ public class RecordService extends Service {
                     handler.sendEmptyMessage(MSG_CONNECTION_ESTABLISHED);
 
                     recorder.startRecording();
-                    int BUFFER_MS = 15; // do not buffer more than BUFFER_MS milliseconds
+                    int BUFFER_MS = 10; // do not buffer more than BUFFER_MS milliseconds
                     byte[] buf = new byte[SAMPLE_RATE * CHANNELS * BUFFER_MS / 1000];
                     while (true) {
                         int r = recorder.read(buf, 0, buf.length);
