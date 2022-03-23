@@ -26,5 +26,16 @@ To change buffer size, add to `am` command with `--ei BUFFER_SIZE_TYPE NUM` opti
 am start com.rom1v.sndcpy/.MainActivity --ei SAMPLE_RATE 48000 --ei BUFFER_SIZE_TYPE 3
 ```
 
+## Relay Server
+Relay servers allow multiple connections to the sndcpy server.
+
+Requirements:
+- Python 3.8+
+
+Usage:
+1. Install sndcpy apk
+2. Run `start_sndcpy_relay.bat` or `start_sndcpy_relay.sh`
+3. Connect localhost:28201 via FFplay, mpv etc. (when default settings. Sampling rate depends your settings)
+
 ## Original README
 See https://github.com/rom1v/sndcpy/blob/master/README.md
