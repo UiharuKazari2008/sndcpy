@@ -37,5 +37,17 @@ Usage:
 2. Run `start_sndcpy_relay.bat` or `start_sndcpy_relay.sh`
 3. Connect localhost:28201 via FFplay, mpv etc. (when default settings. Sampling rate depends your settings)
 
+Parameters:
+All parameters are optional.
+
+- `--sndcpy-host HOSTNAME`
+  sndcpy's hostname (default: `localhost`)
+- `--sndcpy-port PORT`
+  sndcpy's forwarding port (default: `28200`)
+- `--bind ADDR`
+  Address to listen relay server (e.g. `0.0.0.0` allows you to connect in LAN networks) (default: `localhost`)
+- `--port PORT`
+  Port to listen relay server (default: `28201`)
+
 ## Original README
 See https://github.com/rom1v/sndcpy/blob/master/README.md
