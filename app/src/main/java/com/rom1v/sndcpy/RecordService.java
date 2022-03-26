@@ -153,6 +153,7 @@ public class RecordService extends Service {
 
     private static LocalSocket connect() throws IOException {
         LocalServerSocket localServerSocket = new LocalServerSocket(SOCKET_NAME);
+        Log.i(TAG, "Socket Ready!");
         try {
             return localServerSocket.accept();
         } finally {
@@ -186,6 +187,7 @@ public class RecordService extends Service {
 
     private void startRecording() {
         final AudioRecord recorder = createAudioRecord(mediaProjection);
+        recorder.startRecording();
 
         recorderThread = new Thread(new Runnable() {
             @Override
@@ -193,7 +195,7 @@ public class RecordService extends Service {
                 try (LocalSocket socket = connect()) {
                     handler.sendEmptyMessage(MSG_CONNECTION_ESTABLISHED);
 
-                    recorder.startRecording();
+
                     int BUFFER_MS = 10; // do not buffer more than BUFFER_MS milliseconds
                     byte[] buf = new byte[SAMPLE_RATE * CHANNELS * BUFFER_MS / 1000];
                     while (true) {
@@ -203,8 +205,10 @@ public class RecordService extends Service {
                 } catch (IOException e) {
                     // ignore
                 } finally {
-                    recorder.stop();
-                    stopSelf();
+                    Log.w(TAG, "Connection Dropped, Not Ready!");
+                    run();
+                    //recorder.stop();
+                    //stopSelf();
                 }
             }
         });
