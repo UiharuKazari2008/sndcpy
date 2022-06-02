@@ -1,12 +1,12 @@
 # sndcpy (tweaked version)
-This is tweaked version of original by rom1v.
+This is tweaked version of original by rom1v. This fork is designed specifically for the Lizumi SXM project to record and play audio from an android device, making it a IP radio for Sirius XM
 
 This version has some features:
 - Support changing sampling rate and buffer size
 - Show sampling rate in notification
 - Automatically restart on socket disconnect
 - Log when socket is ready and when it's restarting.
-- Corrected a bug where the AudioRecorder
+- Dual Sockets for Recording and Playback without a proxy 
 
 ## Changing sampling rate
 To change sampling rate, add to `am` command with `--ei SAMPLE_RATE FREQ` option.

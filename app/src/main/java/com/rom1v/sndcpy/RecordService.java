@@ -1,5 +1,6 @@
 package com.rom1v.sndcpy;
 
+import android.annotation.SuppressLint;
 import android.app.Activity;
 import android.app.Notification;
 import android.app.NotificationChannel;
@@ -37,7 +38,8 @@ public class RecordService extends Service {
 
     private static final int MSG_CONNECTION_ESTABLISHED = 1;
 
-    private static final String SOCKET_NAME = "sndcpy";
+    private static final String SOCKET_NAME_RECORDER = "sndcpy";
+    private static final String SOCKET_NAME_PLAYER = "sndcpy_play";
 
 
     // private static final int SAMPLE_RATE = 48000;
@@ -51,9 +53,10 @@ public class RecordService extends Service {
     private MediaProjectionManager mediaProjectionManager;
     private MediaProjection mediaProjection;
     private Thread recorderThread;
+    private Thread playerThread;
 
     public static void start(Context context, Intent data) {
-        SAMPLE_RATE_REAL = data.getIntExtra("SAMPLE_RATE", 48000);
+        SAMPLE_RATE_REAL = data.getIntExtra("SAMPLE_RATE", 44100);
         SAMPLE_RATE = SAMPLE_RATE_REAL;
 
         int mBufferSizeType = data.getIntExtra("BUFFER_SIZE_TYPE", 0);
@@ -151,9 +154,9 @@ public class RecordService extends Service {
         return actionBuilder.build();
     }
 
-    private static LocalSocket connect() throws IOException {
-        LocalServerSocket localServerSocket = new LocalServerSocket(SOCKET_NAME);
-        Log.i(TAG, "Socket Ready!");
+    private static LocalSocket connect(String socket_name) throws IOException {
+        LocalServerSocket localServerSocket = new LocalServerSocket(socket_name);
+        Log.i(TAG, "Socket '" + socket_name + "' Ready!");
         try {
             return localServerSocket.accept();
         } finally {
@@ -173,10 +176,11 @@ public class RecordService extends Service {
         AudioFormat.Builder builder = new AudioFormat.Builder();
         builder.setEncoding(AudioFormat.ENCODING_PCM_16BIT);
         builder.setSampleRate(SAMPLE_RATE);
-        builder.setChannelMask(CHANNELS == 2 ? AudioFormat.CHANNEL_IN_STEREO : AudioFormat.CHANNEL_IN_MONO);
+        builder.setChannelMask(CHANNELS >= 2 ? AudioFormat.CHANNEL_IN_STEREO : AudioFormat.CHANNEL_IN_MONO);
         return builder.build();
     }
 
+    @SuppressLint("MissingPermission")
     private static AudioRecord createAudioRecord(MediaProjection mediaProjection) {
         AudioRecord.Builder builder = new AudioRecord.Builder();
         builder.setAudioFormat(createAudioFormat());
@@ -192,9 +196,8 @@ public class RecordService extends Service {
         recorderThread = new Thread(new Runnable() {
             @Override
             public void run() {
-                try (LocalSocket socket = connect()) {
+                try (LocalSocket socket = connect(SOCKET_NAME_RECORDER)) {
                     handler.sendEmptyMessage(MSG_CONNECTION_ESTABLISHED);
-
 
                     int BUFFER_MS = 10; // do not buffer more than BUFFER_MS milliseconds
                     byte[] buf = new byte[SAMPLE_RATE * CHANNELS * BUFFER_MS / 1000];
@@ -205,14 +208,35 @@ public class RecordService extends Service {
                 } catch (IOException e) {
                     // ignore
                 } finally {
-                    Log.w(TAG, "Connection Dropped, Not Ready!");
+                    Log.w(TAG, "Recorder Connection Dropped, Not Ready!");
                     run();
-                    //recorder.stop();
-                    //stopSelf();
                 }
             }
         });
         recorderThread.start();
+
+        final AudioRecord player = createAudioRecord(mediaProjection);
+        player.startRecording();
+        playerThread = new Thread(new Runnable() {
+            @Override
+            public void run() {
+                try (LocalSocket socket = connect(SOCKET_NAME_PLAYER)) {
+                    int BUFFER_MS = 10; // do not buffer more than BUFFER_MS milliseconds
+                    byte[] buf = new byte[SAMPLE_RATE * CHANNELS * BUFFER_MS / 1000];
+                    while (true) {
+                        int r = player.read(buf, 0, buf.length);
+                        socket.getOutputStream().write(buf, 0, r);
+                    }
+                } catch (IOException e) {
+                    // ignore
+                } finally {
+                    Log.w(TAG, "Player Connection Dropped, Not Ready!");
+                    run();
+                }
+            }
+        });
+        playerThread.start();
+
     }
 
     private boolean isRunning() {
